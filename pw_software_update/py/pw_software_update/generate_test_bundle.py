@@ -104,7 +104,9 @@ def byte_array_declaration(data: bytes, name: str) -> str:
 
 def proto_array_declaration(proto, name: str) -> str:
     """Generates a byte array declaration for a proto"""
-    return byte_array_declaration(proto.SerializeToString(), name)
+    return byte_array_declaration(
+        proto.SerializeToString(deterministic=True), name
+    )
 
 
 def private_key_public_pem_bytes(key: ec.EllipticCurvePrivateKey) -> bytes:
@@ -186,10 +188,12 @@ class Bundle:
         signed_root = SignedRootMetadata()
         root_metadata_proto = self.generate_dev_root_metadata()
         signed_root.serialized_root_metadata = (
-            root_metadata_proto.SerializeToString()
+            root_metadata_proto.SerializeToString(deterministic=True)
         )
         return dev_sign.sign_root_metadata(
-            signed_root, private_key_private_pem_bytes(self._root_dev_key)
+            signed_root,
+            private_key_private_pem_bytes(self._root_dev_key),
+            deterministic_signing=True,
         )
 
     def generate_prod_signed_root_metadata(
@@ -200,11 +204,15 @@ class Bundle:
             root_metadata_proto = self.generate_prod_root_metadata()
 
         signed_root = SignedRootMetadata(
-            serialized_root_metadata=root_metadata_proto.SerializeToString()
+            serialized_root_metadata=root_metadata_proto.SerializeToString(
+                deterministic=True
+            )
         )
 
         return dev_sign.sign_root_metadata(
-            signed_root, private_key_private_pem_bytes(self._root_prod_key)
+            signed_root,
+            private_key_private_pem_bytes(self._root_prod_key),
+            deterministic_signing=True,
         )
 
     def generate_targets_metadata(self) -> TargetsMetadata:
@@ -230,7 +238,9 @@ class Bundle:
 
         bundle.targets_metadata["targets"].CopyFrom(
             SignedTargetsMetadata(
-                serialized_targets_metadata=targets_metadata.SerializeToString()
+                serialized_targets_metadata=targets_metadata.SerializeToString(
+                    deterministic=True
+                )
             )
         )
 
@@ -250,6 +260,7 @@ class Bundle:
                 targets_metadata_override, signed_root_metadata
             ),
             private_key_private_pem_bytes(self._targets_dev_key),
+            deterministic_signing=True,
         )
 
     def generate_prod_signed_bundle(
@@ -266,6 +277,7 @@ class Bundle:
                 targets_metadata_override, signed_root_metadata
             ),
             private_key_private_pem_bytes(self._targets_prod_key),
+            deterministic_signing=True,
         )
 
     def generate_multi_sig_root_metadata(self) -> RootMetadata:
@@ -300,10 +312,12 @@ class Bundle:
         signed_root = SignedRootMetadata()
         root_metadata_proto = self.generate_multi_sig_root_metadata()
         signed_root.serialized_root_metadata = (
-            root_metadata_proto.SerializeToString()
+            root_metadata_proto.SerializeToString(deterministic=True)
         )
         return dev_sign.sign_root_metadata(
-            signed_root, private_key_private_pem_bytes(self._root_dev_key)
+            signed_root,
+            private_key_private_pem_bytes(self._root_dev_key),
+            deterministic_signing=True,
         )
 
     def generate_multi_sig_duplicate_signed_bundle(
@@ -312,10 +326,14 @@ class Bundle:
         """Generates a bundle with duplicate targets metadata signatures."""
         bundle = self.generate_unsigned_bundle(signed_root_metadata=signed_root)
         bundle = dev_sign.sign_update_bundle(
-            bundle, private_key_private_pem_bytes(self._targets_dev_key)
+            bundle,
+            private_key_private_pem_bytes(self._targets_dev_key),
+            deterministic_signing=True,
         )
         bundle = dev_sign.sign_update_bundle(
-            bundle, private_key_private_pem_bytes(self._targets_dev_key)
+            bundle,
+            private_key_private_pem_bytes(self._targets_dev_key),
+            deterministic_signing=True,
         )
         return bundle
 
@@ -421,7 +439,9 @@ def main() -> int:
     # metadata. This is done by dev signing a prod root metadata.
     # pylint: disable=line-too-long
     signed_mismatched_root_key_and_signature = SignedRootMetadata(
-        serialized_root_metadata=test_bundle.generate_prod_root_metadata().SerializeToString()
+        serialized_root_metadata=test_bundle.generate_prod_root_metadata().SerializeToString(
+            deterministic=True
+        )
     )
     # pylint: enable=line-too-long
     dev_root_key = serialization.load_pem_private_key(
@@ -430,6 +450,7 @@ def main() -> int:
     signature = keys.create_ecdsa_signature(
         signed_mismatched_root_key_and_signature.serialized_root_metadata,
         private_key_private_pem_bytes(dev_root_key),  # type: ignore
+        deterministic_signing=True,
     )
     signed_mismatched_root_key_and_signature.signatures.append(signature)
     mismatched_root_key_and_signature_bundle = (

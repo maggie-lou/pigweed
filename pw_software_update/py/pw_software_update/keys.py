@@ -123,7 +123,9 @@ def import_ecdsa_public_key(pem: bytes) -> KeyMapping:
     return KeyMapping(key_id=gen_key_id(tuf_key), key=tuf_key)
 
 
-def create_ecdsa_signature(data: bytes, key: bytes) -> Signature:
+def create_ecdsa_signature(
+    data: bytes, key: bytes, *, deterministic_signing: bool = False
+) -> Signature:
     """Creates an ECDSA-SHA2-NISTP256 signature."""
     ec_key = load_pem_private_key(key, password=None)
     if not isinstance(ec_key, ec.EllipticCurvePrivateKey):
@@ -140,8 +142,11 @@ def create_ecdsa_signature(data: bytes, key: bytes) -> Signature:
         ),
     )
 
+    algorithm = ec.ECDSA(hashes.SHA256())
+    if deterministic_signing:
+        algorithm = ec.ECDSA(hashes.SHA256(), deterministic_signing=True)
     der_signature = ec_key.sign(
-        data, ec.ECDSA(hashes.SHA256())
+        data, algorithm
     )  # pylint: disable=no-value-for-parameter
     int_r, int_s = decode_dss_signature(der_signature)
     sig_bytes = int_r.to_bytes(32, 'big') + int_s.to_bytes(32, 'big')

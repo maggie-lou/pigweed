@@ -22,17 +22,23 @@ from pw_software_update.update_bundle_pb2 import UpdateBundle
 
 
 def sign_root_metadata(
-    root_metadata: SignedRootMetadata, root_key_pem: bytes
+    root_metadata: SignedRootMetadata,
+    root_key_pem: bytes,
+    *,
+    deterministic_signing: bool = False,
 ) -> SignedRootMetadata:
     """Signs or re-signs a Root Metadata.
 
     Args:
       root_metadata: A SignedRootMetadata to be signed/re-signed.
       root_key_pem: The Root signing key in PEM.
+      deterministic_signing: Produce reproducible test fixture signatures.
     """
 
     signature = keys.create_ecdsa_signature(
-        root_metadata.serialized_root_metadata, root_key_pem
+        root_metadata.serialized_root_metadata,
+        root_key_pem,
+        deterministic_signing=deterministic_signing,
     )
     root_metadata.signatures.append(signature)
 
@@ -40,18 +46,23 @@ def sign_root_metadata(
 
 
 def sign_update_bundle(
-    bundle: UpdateBundle, targets_key_pem: bytes
+    bundle: UpdateBundle,
+    targets_key_pem: bytes,
+    *,
+    deterministic_signing: bool = False,
 ) -> UpdateBundle:
     """Signs or re-signs an update bundle.
 
     Args:
       bundle: An UpdateBundle to be signed/re-signed.
       targets_key_pem: The targets signing key in PEM.
+      deterministic_signing: Produce reproducible test fixture signatures.
     """
     bundle.targets_metadata['targets'].signatures.append(
         keys.create_ecdsa_signature(
             bundle.targets_metadata['targets'].serialized_targets_metadata,
             targets_key_pem,
+            deterministic_signing=deterministic_signing,
         )
     )
     return bundle
